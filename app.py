@@ -37,6 +37,9 @@ RAG_THRESHOLD = 0.6
 RAG_K = 5
 
 def create_json_response(data, status_code=200):
+    # Ensure Rocket Chat compatibility by using 'text' as the key for responses
+    if "response" in data:
+        data["text"] = data.pop("response")
     response = make_response(jsonify(data), status_code)
     response.headers["Content-Type"] = "application/json"
     return response
@@ -50,14 +53,14 @@ def root_handler():
         parent_question = data.get("text", "").strip()
         if not parent_question:
             return create_json_response({
-                "message": "Welcome! To get started, you can ask questions like:\n"
-                           "- How can I support my child with autism at home?\n"
-                           "- What activities can help with learning at home?\n"
-                           "- How do I handle sensory sensitivities?\n\n"
-                           "For IEP generation, please provide:\n"
-                           "- Student's Name\n"
-                           "- Year of Education (e.g., Grade 3, Year 5)\n"
-                           "- School Location (city, state, or country)."
+                "text": "Welcome! To get started, you can ask questions like:\n"
+                        "- How can I support my child with autism at home?\n"
+                        "- What activities can help with learning at home?\n"
+                        "- How do I handle sensory sensitivities?\n\n"
+                        "For IEP generation, please provide:\n"
+                        "- Student's Name\n"
+                        "- Year of Education (e.g., Grade 3, Year 5)\n"
+                        "- School Location (city, state, or country)."
             })
 
         logging.info(f"Processing question from root POST: {parent_question}")
@@ -66,7 +69,7 @@ def root_handler():
             logging.info("Providing tailored response for common question.")
             response_data = {
                 "success": True,
-                "response": "Supporting your child with autism at home involves creating structured routines, offering clear communication, and providing sensory-friendly spaces. Consider introducing visual schedules, engaging in special interests together, and using positive reinforcement to encourage desired behaviors. Always provide a safe and predictable environment where your child can thrive."
+                "text": "Supporting your child with autism at home involves creating structured routines, offering clear communication, and providing sensory-friendly spaces. Consider introducing visual schedules, engaging in special interests together, and using positive reinforcement to encourage desired behaviors. Always provide a safe and predictable environment where your child can thrive."
             }
             logging.info(f"Returning tailored response: {response_data}")
             return create_json_response(response_data)
@@ -90,7 +93,7 @@ def root_handler():
                 rag_k=RAG_K
             )
 
-            response_data = {"success": True, "response": response["response"]}
+            response_data = {"success": True, "text": response["response"]}
             logging.info(f"Generated response to be returned: {response_data}")
             return create_json_response(response_data)
         except Exception as e:
@@ -118,10 +121,10 @@ def generate_iep():
 
         if not student_name or not education_year or not school_location:
             return create_json_response({
-                "error": "Missing required fields. To generate an IEP, provide:\n"
-                         "- Student's Name\n"
-                         "- Year of Education (e.g., Grade 3, Year 5)\n"
-                         "- School Location (city, state, or country)."
+                "text": "Missing required fields. To generate an IEP, provide:\n"
+                        "- Student's Name\n"
+                        "- Year of Education (e.g., Grade 3, Year 5)\n"
+                        "- School Location (city, state, or country)."
             }, 400)
 
         query = (
@@ -141,7 +144,7 @@ def generate_iep():
             rag_k=RAG_K
         )
 
-        response_data = {"success": True, "iep": response["response"]}
+        response_data = {"success": True, "text": response["response"]}
         logging.info(f"Generated IEP response to be returned: {response_data}")
         return create_json_response(response_data)
 
@@ -158,9 +161,9 @@ def parent_qna():
         parent_question = data.get("question", "")
         if not parent_question.strip():
             return create_json_response({
-                "error": "Please provide a valid question. For example:\n"
-                         "- How can I support my child with autism at home?\n"
-                         "- What activities can help with learning at home?"
+                "text": "Please provide a valid question. For example:\n"
+                        "- How can I support my child with autism at home?\n"
+                        "- What activities can help with learning at home?"
             }, 400)
 
         qna_prompt = """
@@ -181,7 +184,7 @@ def parent_qna():
             rag_k=RAG_K
         )
 
-        response_data = {"success": True, "response": response["response"]}
+        response_data = {"success": True, "text": response["response"]}
         logging.info(f"Generated Q&A response to be returned: {response_data}")
         return create_json_response(response_data)
 
@@ -195,6 +198,7 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
+
 
 
 
