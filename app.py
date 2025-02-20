@@ -42,7 +42,6 @@ def root_handler():
         data = request.get_json() or {}
         logging.info(f"Received POST request at root: {data}")
 
-        # Provide instructions if no question is found
         parent_question = data.get("text", "").strip()
         if not parent_question:
             return jsonify({
@@ -61,10 +60,12 @@ def root_handler():
         # Tailored response for common questions
         if parent_question.lower() == "how can i support my child with autism at home?":
             logging.info("Providing tailored response for common question.")
-            return jsonify({
+            response_data = {
                 "success": True,
                 "response": "Supporting your child with autism at home involves creating structured routines, offering clear communication, and providing sensory-friendly spaces. Consider introducing visual schedules, engaging in special interests together, and using positive reinforcement to encourage desired behaviors. Always provide a safe and predictable environment where your child can thrive."
-            })
+            }
+            logging.info(f"Returning tailored response: {response_data}")
+            return jsonify(response_data)
 
         try:
             qna_prompt = """
@@ -85,8 +86,9 @@ def root_handler():
                 rag_k=RAG_K
             )
 
-            logging.info(f"Generated response: {response['response']}")
-            return jsonify({"success": True, "response": response["response"]})
+            response_data = {"success": True, "response": response["response"]}
+            logging.info(f"Generated response to be returned: {response_data}")
+            return jsonify(response_data)
         except Exception as e:
             logging.error(f"Error processing question at root: {e}")
             return jsonify({"error": f"Failed to process question: {str(e)}"}), 500
@@ -135,8 +137,9 @@ def generate_iep():
             rag_k=RAG_K
         )
 
-        logging.info(f"Generated IEP response: {response['response']}")
-        return jsonify({"success": True, "iep": response["response"]})
+        response_data = {"success": True, "iep": response["response"]}
+        logging.info(f"Generated IEP response to be returned: {response_data}")
+        return jsonify(response_data)
 
     except Exception as e:
         logging.error(f"Error generating IEP: {e}")
@@ -174,8 +177,9 @@ def parent_qna():
             rag_k=RAG_K
         )
 
-        logging.info(f"Generated Q&A response: {response['response']}")
-        return jsonify({"success": True, "response": response["response"]})
+        response_data = {"success": True, "response": response["response"]}
+        logging.info(f"Generated Q&A response to be returned: {response_data}")
+        return jsonify(response_data)
 
     except Exception as e:
         logging.error(f"Error in parent_qna: {e}")
