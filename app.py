@@ -42,36 +42,52 @@ def root_handler():
         data = request.get_json() or {}
         logging.info(f"Received POST request at root: {data}")
 
-        # Check if the request contains a 'text' field with a question
+        # Provide instructions if no question is found
         parent_question = data.get("text", "").strip()
-        if parent_question:
-            logging.info(f"Processing question from root POST: {parent_question}")
-            qna_prompt = """
-            You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
-            Provide clear, empathetic, and actionable responses to general questions from parents. 
-            Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
-            """
+        if not parent_question:
+            return jsonify({
+                "message": "Welcome! To get started, you can ask questions like:\n"
+                           "- How can I support my child with autism at home?\n"
+                           "- What activities can help with learning at home?\n"
+                           "- How do I handle sensory sensitivities?\n\n"
+                           "For IEP generation, please provide:\n"
+                           "- Student's Name\n"
+                           "- Year of Education (e.g., Grade 3, Year 5)\n"
+                           "- School Location (city, state, or country)."
+            })
 
-            try:
-                response = generate(
-                    model=MODEL_NAME,
-                    system=qna_prompt,
-                    query=parent_question,
-                    temperature=TEMPERATURE,
-                    lastk=LASTK,
-                    session_id=SESSION_ID,
-                    rag_usage=RAG_USAGE,
-                    rag_threshold=RAG_THRESHOLD,
-                    rag_k=RAG_K
-                )
-                return jsonify({"success": True, "response": response["response"]})
-            except Exception as e:
-                logging.error(f"Error processing question at root: {e}")
-                return jsonify({"error": f"Failed to process question: {str(e)}"}), 500
+        logging.info(f"Processing question from root POST: {parent_question}")
+        qna_prompt = """
+        You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
+        Provide clear, empathetic, and actionable responses to general questions from parents. 
+        Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
+        """
 
-        return jsonify({"message": "POST request received at root, but no question found.", "data": data})
+        try:
+            response = generate(
+                model=MODEL_NAME,
+                system=qna_prompt,
+                query=parent_question,
+                temperature=TEMPERATURE,
+                lastk=LASTK,
+                session_id=SESSION_ID,
+                rag_usage=RAG_USAGE,
+                rag_threshold=RAG_THRESHOLD,
+                rag_k=RAG_K
+            )
+            return jsonify({"success": True, "response": response["response"]})
+        except Exception as e:
+            logging.error(f"Error processing question at root: {e}")
+            return jsonify({"error": f"Failed to process question: {str(e)}"}), 500
 
-    return jsonify({"text": 'Hello from Koyeb - you reached the main page for IEP Generator & Parent Q&A!'})
+    return jsonify({"text": "Hello from Koyeb - you reached the main page for IEP Generator & Parent Q&A!\n"
+                             "To generate an IEP, provide:\n"
+                             "- Student's Name\n"
+                             "- Year of Education (e.g., Grade 3, Year 5)\n"
+                             "- School Location (city, state, or country).\n\n"
+                             "Ask general questions like:\n"
+                             "- How can I support my child with autism at home?\n"
+                             "- What activities help with learning at home?"})
 
 @app.route('/generate_iep', methods=['POST'])
 def generate_iep():
@@ -84,7 +100,12 @@ def generate_iep():
         school_location = data.get("school_location", "")
 
         if not student_name or not education_year or not school_location:
-            return jsonify({"error": "Missing required fields: student_name, education_year, or school_location."}), 400
+            return jsonify({
+                "error": "Missing required fields. To generate an IEP, provide:\n"
+                         "- Student's Name\n"
+                         "- Year of Education (e.g., Grade 3, Year 5)\n"
+                         "- School Location (city, state, or country)."
+            }), 400
 
         query = (
             f"Using the student report uploaded for {student_name}, who is in {education_year} at a school in {school_location}, "
@@ -117,7 +138,11 @@ def parent_qna():
 
         parent_question = data.get("question", "")
         if not parent_question.strip():
-            return jsonify({"error": "Please provide a valid question."}), 400
+            return jsonify({
+                "error": "Please provide a valid question. For example:\n"
+                         "- How can I support my child with autism at home?\n"
+                         "- What activities can help with learning at home?"
+            }), 400
 
         qna_prompt = """
         You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
@@ -149,4 +174,5 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
+
 
