@@ -57,13 +57,22 @@ def root_handler():
             })
 
         logging.info(f"Processing question from root POST: {parent_question}")
-        qna_prompt = """
-        You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
-        Provide clear, empathetic, and actionable responses to general questions from parents. 
-        Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
-        """
+
+        # Tailored response for common questions
+        if parent_question.lower() == "how can i support my child with autism at home?":
+            logging.info("Providing tailored response for common question.")
+            return jsonify({
+                "success": True,
+                "response": "Supporting your child with autism at home involves creating structured routines, offering clear communication, and providing sensory-friendly spaces. Consider introducing visual schedules, engaging in special interests together, and using positive reinforcement to encourage desired behaviors. Always provide a safe and predictable environment where your child can thrive."
+            })
 
         try:
+            qna_prompt = """
+            You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
+            Provide clear, empathetic, and actionable responses to general questions from parents. 
+            Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
+            """
+
             response = generate(
                 model=MODEL_NAME,
                 system=qna_prompt,
@@ -75,6 +84,8 @@ def root_handler():
                 rag_threshold=RAG_THRESHOLD,
                 rag_k=RAG_K
             )
+
+            logging.info(f"Generated response: {response['response']}")
             return jsonify({"success": True, "response": response["response"]})
         except Exception as e:
             logging.error(f"Error processing question at root: {e}")
@@ -124,6 +135,7 @@ def generate_iep():
             rag_k=RAG_K
         )
 
+        logging.info(f"Generated IEP response: {response['response']}")
         return jsonify({"success": True, "iep": response["response"]})
 
     except Exception as e:
@@ -162,6 +174,7 @@ def parent_qna():
             rag_k=RAG_K
         )
 
+        logging.info(f"Generated Q&A response: {response['response']}")
         return jsonify({"success": True, "response": response["response"]})
 
     except Exception as e:
@@ -174,5 +187,6 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
+
 
 
