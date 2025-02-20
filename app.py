@@ -1,7 +1,7 @@
 # Ensure the Procfile exists with the following line:
 # web: gunicorn app:app
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from llmproxy import generate, pdf_upload
 import logging
@@ -36,6 +36,11 @@ RAG_USAGE = True
 RAG_THRESHOLD = 0.6
 RAG_K = 5
 
+def create_json_response(data, status_code=200):
+    response = make_response(jsonify(data), status_code)
+    response.headers["Content-Type"] = "application/json"
+    return response
+
 @app.route('/', methods=['GET', 'POST'])
 def root_handler():
     if request.method == 'POST':
@@ -44,7 +49,7 @@ def root_handler():
 
         parent_question = data.get("text", "").strip()
         if not parent_question:
-            return jsonify({
+            return create_json_response({
                 "message": "Welcome! To get started, you can ask questions like:\n"
                            "- How can I support my child with autism at home?\n"
                            "- What activities can help with learning at home?\n"
@@ -57,7 +62,6 @@ def root_handler():
 
         logging.info(f"Processing question from root POST: {parent_question}")
 
-        # Tailored response for common questions
         if parent_question.lower() == "how can i support my child with autism at home?":
             logging.info("Providing tailored response for common question.")
             response_data = {
@@ -65,7 +69,7 @@ def root_handler():
                 "response": "Supporting your child with autism at home involves creating structured routines, offering clear communication, and providing sensory-friendly spaces. Consider introducing visual schedules, engaging in special interests together, and using positive reinforcement to encourage desired behaviors. Always provide a safe and predictable environment where your child can thrive."
             }
             logging.info(f"Returning tailored response: {response_data}")
-            return jsonify(response_data)
+            return create_json_response(response_data)
 
         try:
             qna_prompt = """
@@ -88,19 +92,19 @@ def root_handler():
 
             response_data = {"success": True, "response": response["response"]}
             logging.info(f"Generated response to be returned: {response_data}")
-            return jsonify(response_data)
+            return create_json_response(response_data)
         except Exception as e:
             logging.error(f"Error processing question at root: {e}")
-            return jsonify({"error": f"Failed to process question: {str(e)}"}), 500
+            return create_json_response({"error": f"Failed to process question: {str(e)}"}, 500)
 
-    return jsonify({"text": "Hello from Koyeb - you reached the main page for IEP Generator & Parent Q&A!\n"
-                             "To generate an IEP, provide:\n"
-                             "- Student's Name\n"
-                             "- Year of Education (e.g., Grade 3, Year 5)\n"
-                             "- School Location (city, state, or country).\n\n"
-                             "Ask general questions like:\n"
-                             "- How can I support my child with autism at home?\n"
-                             "- What activities help with learning at home?"})
+    return create_json_response({"text": "Hello from Koyeb - you reached the main page for IEP Generator & Parent Q&A!\n"
+                                     "To generate an IEP, provide:\n"
+                                     "- Student's Name\n"
+                                     "- Year of Education (e.g., Grade 3, Year 5)\n"
+                                     "- School Location (city, state, or country).\n\n"
+                                     "Ask general questions like:\n"
+                                     "- How can I support my child with autism at home?\n"
+                                     "- What activities help with learning at home?"})
 
 @app.route('/generate_iep', methods=['POST'])
 def generate_iep():
@@ -113,12 +117,12 @@ def generate_iep():
         school_location = data.get("school_location", "")
 
         if not student_name or not education_year or not school_location:
-            return jsonify({
+            return create_json_response({
                 "error": "Missing required fields. To generate an IEP, provide:\n"
                          "- Student's Name\n"
                          "- Year of Education (e.g., Grade 3, Year 5)\n"
                          "- School Location (city, state, or country)."
-            }), 400
+            }, 400)
 
         query = (
             f"Using the student report uploaded for {student_name}, who is in {education_year} at a school in {school_location}, "
@@ -139,11 +143,11 @@ def generate_iep():
 
         response_data = {"success": True, "iep": response["response"]}
         logging.info(f"Generated IEP response to be returned: {response_data}")
-        return jsonify(response_data)
+        return create_json_response(response_data)
 
     except Exception as e:
         logging.error(f"Error generating IEP: {e}")
-        return jsonify({"error": f"Generation failed: {str(e)}"}), 500
+        return create_json_response({"error": f"Generation failed: {str(e)}"}, 500)
 
 @app.route('/parent_qna', methods=['POST'])
 def parent_qna():
@@ -153,11 +157,11 @@ def parent_qna():
 
         parent_question = data.get("question", "")
         if not parent_question.strip():
-            return jsonify({
+            return create_json_response({
                 "error": "Please provide a valid question. For example:\n"
                          "- How can I support my child with autism at home?\n"
                          "- What activities can help with learning at home?"
-            }), 400
+            }, 400)
 
         qna_prompt = """
         You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
@@ -179,15 +183,15 @@ def parent_qna():
 
         response_data = {"success": True, "response": response["response"]}
         logging.info(f"Generated Q&A response to be returned: {response_data}")
-        return jsonify(response_data)
+        return create_json_response(response_data)
 
     except Exception as e:
         logging.error(f"Error in parent_qna: {e}")
-        return jsonify({"error": f"Q&A failed: {str(e)}"}), 500
+        return create_json_response({"error": f"Q&A failed: {str(e)}"}, 500)
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return jsonify({"error": "Not Found"}), 404
+    return create_json_response({"error": "Not Found"}, 404)
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
