@@ -1,7 +1,11 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from llmproxy import generate, pdf_upload
+import logging
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+logging.basicConfig(level=logging.INFO)
 
 prompt = """
 You are a special needs academic advisor specializing in supporting young children with developmental learning disabilities, such as autism, dyslexia, and ADHD.
@@ -35,60 +39,73 @@ def hello_world():
 
 @app.route('/generate_iep', methods=['POST'])
 def generate_iep():
-    data = request.get_json()
-    student_name = data.get("student_name", "Unknown")
-    education_year = data.get("education_year", "")
-    school_location = data.get("school_location", "")
-    
-    if not student_name or not education_year or not school_location:
-        return jsonify({"error": "Missing required fields: student_name, education_year, or school_location."}), 400
+    try:
+        data = request.get_json()
+        logging.info(f"Received generate_iep request: {data}")
 
-    query = (
-        f"Using the student report uploaded for {student_name}, who is in {education_year} at a school in {school_location}, "
-        "generate a detailed Individualized Education Plan (IEP) tailored to their educational needs for home support."
-    )
+        student_name = data.get("student_name", "Unknown")
+        education_year = data.get("education_year", "")
+        school_location = data.get("school_location", "")
 
-    response = generate(
-        model=MODEL_NAME,
-        system=prompt,
-        query=query,
-        temperature=TEMPERATURE,
-        lastk=LASTK,
-        session_id=SESSION_ID,
-        rag_usage=RAG_USAGE,
-        rag_threshold=RAG_THRESHOLD,
-        rag_k=RAG_K
-    )
+        if not student_name or not education_year or not school_location:
+            return jsonify({"error": "Missing required fields: student_name, education_year, or school_location."}), 400
 
-    return jsonify({"iep": response["response"]})
+        query = (
+            f"Using the student report uploaded for {student_name}, who is in {education_year} at a school in {school_location}, "
+            "generate a detailed Individualized Education Plan (IEP) tailored to their educational needs for home support."
+        )
+
+        response = generate(
+            model=MODEL_NAME,
+            system=prompt,
+            query=query,
+            temperature=TEMPERATURE,
+            lastk=LASTK,
+            session_id=SESSION_ID,
+            rag_usage=RAG_USAGE,
+            rag_threshold=RAG_THRESHOLD,
+            rag_k=RAG_K
+        )
+
+        return jsonify({"success": True, "iep": response["response"]})
+
+    except Exception as e:
+        logging.error(f"Error generating IEP: {e}")
+        return jsonify({"error": f"Generation failed: {str(e)}"}), 500
 
 @app.route('/parent_qna', methods=['POST'])
 def parent_qna():
-    data = request.get_json()
-    parent_question = data.get("question", "")
+    try:
+        data = request.get_json()
+        logging.info(f"Received parent_qna request: {data}")
 
-    if not parent_question.strip():
-        return jsonify({"error": "Please provide a valid question."}), 400
+        parent_question = data.get("question", "")
+        if not parent_question.strip():
+            return jsonify({"error": "Please provide a valid question."}), 400
 
-    qna_prompt = """
-    You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
-    Provide clear, empathetic, and actionable responses to general questions from parents. 
-    Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
-    """
+        qna_prompt = """
+        You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
+        Provide clear, empathetic, and actionable responses to general questions from parents. 
+        Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
+        """
 
-    response = generate(
-        model=MODEL_NAME,
-        system=qna_prompt,
-        query=parent_question,
-        temperature=TEMPERATURE,
-        lastk=LASTK,
-        session_id=SESSION_ID,
-        rag_usage=RAG_USAGE,
-        rag_threshold=RAG_THRESHOLD,
-        rag_k=RAG_K
-    )
+        response = generate(
+            model=MODEL_NAME,
+            system=qna_prompt,
+            query=parent_question,
+            temperature=TEMPERATURE,
+            lastk=LASTK,
+            session_id=SESSION_ID,
+            rag_usage=RAG_USAGE,
+            rag_threshold=RAG_THRESHOLD,
+            rag_k=RAG_K
+        )
 
-    return jsonify({"response": response["response"]})
+        return jsonify({"success": True, "response": response["response"]})
+
+    except Exception as e:
+        logging.error(f"Error in parent_qna: {e}")
+        return jsonify({"error": f"Q&A failed: {str(e)}"}), 500
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -96,3 +113,4 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
+
