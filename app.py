@@ -1,3 +1,6 @@
+# Ensure the Procfile exists with the following line:
+# web: gunicorn app:app
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from llmproxy import generate, pdf_upload
@@ -38,7 +41,36 @@ def root_handler():
     if request.method == 'POST':
         data = request.get_json() or {}
         logging.info(f"Received POST request at root: {data}")
-        return jsonify({"message": "POST request received at root!", "data": data})
+
+        # Check if the request contains a 'text' field with a question
+        parent_question = data.get("text", "").strip()
+        if parent_question:
+            logging.info(f"Processing question from root POST: {parent_question}")
+            qna_prompt = """
+            You are a compassionate and knowledgeable advisor who supports parents of children with autism. 
+            Provide clear, empathetic, and actionable responses to general questions from parents. 
+            Do not provide medical diagnoses or opinions; instead, focus on practical advice, educational strategies, and emotional support tips.
+            """
+
+            try:
+                response = generate(
+                    model=MODEL_NAME,
+                    system=qna_prompt,
+                    query=parent_question,
+                    temperature=TEMPERATURE,
+                    lastk=LASTK,
+                    session_id=SESSION_ID,
+                    rag_usage=RAG_USAGE,
+                    rag_threshold=RAG_THRESHOLD,
+                    rag_k=RAG_K
+                )
+                return jsonify({"success": True, "response": response["response"]})
+            except Exception as e:
+                logging.error(f"Error processing question at root: {e}")
+                return jsonify({"error": f"Failed to process question: {str(e)}"}), 500
+
+        return jsonify({"message": "POST request received at root, but no question found.", "data": data})
+
     return jsonify({"text": 'Hello from Koyeb - you reached the main page for IEP Generator & Parent Q&A!'})
 
 @app.route('/generate_iep', methods=['POST'])
@@ -117,3 +149,4 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
+
